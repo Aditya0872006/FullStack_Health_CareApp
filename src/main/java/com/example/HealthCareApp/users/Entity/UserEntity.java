@@ -2,9 +2,7 @@ package com.example.HealthCareApp.users.Entity;
 
 import com.example.HealthCareApp.role.Entity.RoleEntity;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import javax.management.relation.Role;
 import java.util.HashSet;
@@ -15,6 +13,7 @@ import java.util.Set;
 @NoArgsConstructor
 @Builder
 @Table(name="users")
+@Data
 public class UserEntity
 {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
