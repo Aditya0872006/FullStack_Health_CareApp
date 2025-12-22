@@ -14,6 +14,7 @@ import java.util.List;
 
 @Getter
 @RequiredArgsConstructor
+@Builder
 public class AuthUser implements UserDetails
 {
     private final UserEntity user;
