@@ -15,24 +15,24 @@ import org.springframework.scheduling.annotation.EnableAsync;
 @RequiredArgsConstructor
 public class HealthCareAppApplication {
 
-    private final NotificationService notificationService;
+//    private final NotificationService notificationService;
 
 	public static void main(String[] args) {
 		SpringApplication.run(HealthCareAppApplication.class, args);
 	}
 
 
-    @Bean
-    CommandLineRunner runner()
-    {
-        return args -> {
-            NotificationDto notificationDTO = NotificationDto.builder()
-					.recipient("sharmaadityamj@gmail.com")
-					.subject("Testing email")
-					.message("Hey, this is a test mail")
-					.build();
-
-			notificationService.sendMail(notificationDTO, new UserEntity());
-        };
-    }
+//    @Bean
+//    CommandLineRunner runner()
+//    {
+//        return args -> {
+//            NotificationDto notificationDTO = NotificationDto.builder()
+//					.recipient("sharmaadityamj@gmail.com")
+//					.subject("Testing email")
+//					.message("Hey, this is a test mail")
+//					.build();
+//
+//			notificationService.sendMail(notificationDTO, new UserEntity());
+//        };
+//    }
 }
