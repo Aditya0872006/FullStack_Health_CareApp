@@ -2,9 +2,12 @@ package com.example.HealthCareApp.users.Service;
 
 import com.amazonaws.services.kms.model.NotFoundException;
 import com.example.HealthCareApp.doctor.dto.DoctorDto;
+import com.example.HealthCareApp.doctor.entity.Doctor;
 import com.example.HealthCareApp.doctor.repository.DoctorRepo;
 import com.example.HealthCareApp.exception.BadRequestException;
+import com.example.HealthCareApp.notification.dto.NotificationDto;
 import com.example.HealthCareApp.notification.service.NotificationService;
+import com.example.HealthCareApp.patient.entity.Patient;
 import com.example.HealthCareApp.patient.repository.PatientRepo;
 import com.example.HealthCareApp.res.Response;
 import com.example.HealthCareApp.role.Entity.RoleEntity;
@@ -18,10 +21,12 @@ import com.example.HealthCareApp.users.Entity.UserEntity;
 import com.example.HealthCareApp.users.Repository.UserRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -40,6 +45,10 @@ public class AuthServiceImp implements AuthService
 
     private final PatientRepo patientRepo;
     private final DoctorRepo doctorRepo;
+
+
+    @Value("${login.link}")
+    private String loginLink;
 
     @Override
     public Response<String> registerUser(RegistrationRequest registrationRequest)
@@ -65,7 +74,8 @@ public class AuthServiceImp implements AuthService
         //cheack all role exixts
         Set<RoleEntity> roles = new HashSet<>();
 
-        for (String roleName : roleNames) {
+        for (String roleName : roleNames)
+        {
             Optional<RoleEntity> roleOpt = roleRepo.findByName(roleName);
             if (roleOpt.isPresent()) {
                 roles.add(roleOpt.get());  // add the actual RoleEntity
@@ -105,7 +115,8 @@ public class AuthServiceImp implements AuthService
                 .message("Registration successful. Welcome email sent.")
                 .data(savedUser.getEmail())
                 .build();
-        return null;
+
+
     }
 
 
@@ -123,4 +134,41 @@ public class AuthServiceImp implements AuthService
     public Response<?> resetPasswordViaCode(ResetPasswordRequest resetPasswordRequest) {
         return null;
     }
+
+    private void createPatientProfile(UserEntity user)
+    {
+        Patient patient = Patient.builder()
+                .user(user)
+                .build();
+        patientRepo.save(patient);
+    }
+
+    private void createDoctorProfile(RegistrationRequest request,UserEntity user)
+    {
+        Doctor doctor = Doctor.builder()
+                .specilization(request.getSpecialization())
+                .licenseNumber(request.getLicenseNumber())
+                .user(user)
+                .build();
+
+        doctorRepo.save(doctor);
+    }
+
+    private void sendRegistrationEmail(RegistrationRequest request,UserEntity user)
+    {
+
+        NotificationDto welcomeEmail = NotificationDto.builder()
+                .recipient(user.getEmail())
+                .subject("Welcome to DAT Health!")
+                .templateName("welcome")
+                .message("Thank you for registering Your account is ready.")
+                .templateVariables(Map.of(
+                        "name", request.getName(),
+                        "loginLink", loginLink
+                ))
+                .build();
+
+        notificationService.sendMail(welcomeEmail, user);
+    }
+
 }
