@@ -2,6 +2,7 @@ package com.example.HealthCareApp.patient.service;
 
 import com.example.HealthCareApp.enums.BloodGroup;
 import com.example.HealthCareApp.enums.Genotype;
+import com.example.HealthCareApp.exception.BadRequestException;
 import com.example.HealthCareApp.exception.NotFoundExecption;
 import com.example.HealthCareApp.patient.dto.PatientDto;
 import com.example.HealthCareApp.patient.entity.Patient;
@@ -15,6 +16,7 @@ import org.modelmapper.ModelMapper;
 import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.stereotype.Service;
 
+import java.nio.file.AccessDeniedException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -42,6 +44,7 @@ public class PatientServiceImp implements PatientService
 
     @Override
     public Response<?> updatePatientProfile(PatientDto patientDTO) {
+
 
         // 1. Get current logged-in user
         UserEntity user = userService.getCurrentUser();
@@ -94,9 +97,14 @@ public class PatientServiceImp implements PatientService
     @Override
     public Response<PatientDto> getPatientById(Long patientId)
     {
-
+        UserEntity user=userService.getCurrentUser();
         Patient patient = patientRepo.findById(patientId)
-                .orElseThrow(() -> new NotFoundExecption("Patient not found with "));
+                .orElseThrow(() -> new NotFoundExecption("Patient not found"));
+        if(!patient.getUser().getId().equals(user.getId()))
+        {
+            throw new BadRequestException("you dont have access");
+        }
+
 
         PatientDto patientDTO = modelMapper.map(patient, PatientDto.class);
 
