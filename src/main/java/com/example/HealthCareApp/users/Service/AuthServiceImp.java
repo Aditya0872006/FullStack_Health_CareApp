@@ -5,6 +5,7 @@ import com.example.HealthCareApp.doctor.dto.DoctorDto;
 import com.example.HealthCareApp.doctor.entity.Doctor;
 import com.example.HealthCareApp.doctor.repository.DoctorRepo;
 import com.example.HealthCareApp.exception.BadRequestException;
+import com.example.HealthCareApp.exception.NotFoundExecption;
 import com.example.HealthCareApp.notification.dto.NotificationDto;
 import com.example.HealthCareApp.notification.service.NotificationService;
 import com.example.HealthCareApp.patient.entity.Patient;
@@ -121,8 +122,37 @@ public class AuthServiceImp implements AuthService
 
 
     @Override
-    public Response<LoginResponse> login(LoginRequest loginRequest) {
-        return null;
+    public Response<LoginResponse> login(LoginRequest loginRequest)
+    {
+        String email=loginRequest.getEmail();
+        String password=loginRequest.getPassword();
+
+        UserEntity user=userRepo.findByEmail(email).orElseThrow(()->new NotFoundExecption("user Not Found"));
+
+        if(!passwordEncoder.matches(password,user.getPassword()))
+        {
+            throw new BadRequestException("wrong password");
+        }
+        String token = jwtService.generateToken(user.getEmail());
+
+        LoginResponse loginResponse = LoginResponse.builder()
+                .roles(
+                        user.getRoles()
+                                .stream()
+                                .map(RoleEntity::getName)
+                                .collect(Collectors.toSet())
+                )
+                .token(token)
+                .build();
+
+
+
+        return Response.<LoginResponse>builder()
+                .statusCode(200)
+                .message("Login Successful")
+                .data(loginResponse)
+                .build();
+
     }
 
     @Override

@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Table(name = "password_reset_code")
 @AllArgsConstructor
 @NoArgsConstructor
+
 public class PasswordResetCode {
 
     @Id

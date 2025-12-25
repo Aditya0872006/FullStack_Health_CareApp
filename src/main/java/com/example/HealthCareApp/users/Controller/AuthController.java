@@ -1,6 +1,8 @@
 package com.example.HealthCareApp.users.Controller;
 
 import com.example.HealthCareApp.res.Response;
+import com.example.HealthCareApp.users.Dto.LoginRequest;
+import com.example.HealthCareApp.users.Dto.LoginResponse;
 import com.example.HealthCareApp.users.Dto.RegistrationRequest;
 import com.example.HealthCareApp.users.Service.AuthService;
 import jakarta.validation.Valid;
@@ -21,5 +23,10 @@ public class AuthController
     ResponseEntity<Response<String>> register(@RequestBody @Valid RegistrationRequest registrationRequest)
     {
         return ResponseEntity.ok(authService.registerUser(registrationRequest));
+    }
+    @PostMapping("/login")
+    ResponseEntity<Response<LoginResponse>> login(@RequestBody @Valid LoginRequest loginRequest)
+    {
+        return ResponseEntity.ok(authService.login(loginRequest));
     }
 }
