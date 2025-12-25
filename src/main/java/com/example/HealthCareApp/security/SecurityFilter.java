@@ -51,7 +51,7 @@ public class SecurityFilter {
 
                 // Authorization rules
                 .authorizeHttpRequests(req -> req
-                        .requestMatchers("/api/auth/**", "/api/doctors/**","/api/roles/**").permitAll()
+                        .requestMatchers("/api/auth/**", "/api/doctors/**").permitAll()
                         .anyRequest().authenticated()) // All other APIs need JWT
 
                 // No session – every request must send JWT
