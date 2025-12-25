@@ -56,10 +56,9 @@ public class UserServiceImp implements UserService
     public Response<UserDto> getMyUserDetails()
     {
         UserEntity user = getCurrentUser();
-
         UserDto userDTO = modelMapper.map(user, UserDto.class);
 
-        return Response.<UserDto>builder()
+       return Response.<UserDto>builder()
                 .statusCode(200)
                 .message("User details retrieved successfully.")
                 .data(userDTO)
