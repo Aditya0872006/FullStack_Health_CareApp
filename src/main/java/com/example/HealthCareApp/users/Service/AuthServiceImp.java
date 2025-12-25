@@ -18,10 +18,13 @@ import com.example.HealthCareApp.users.Dto.LoginRequest;
 import com.example.HealthCareApp.users.Dto.LoginResponse;
 import com.example.HealthCareApp.users.Dto.RegistrationRequest;
 import com.example.HealthCareApp.users.Dto.ResetPasswordRequest;
+import com.example.HealthCareApp.users.Entity.PasswordResetCode;
 import com.example.HealthCareApp.users.Entity.UserEntity;
+import com.example.HealthCareApp.users.Repository.PasswordResetRepo;
 import com.example.HealthCareApp.users.Repository.UserRepo;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -47,9 +50,15 @@ public class AuthServiceImp implements AuthService
     private final PatientRepo patientRepo;
     private final DoctorRepo doctorRepo;
 
+    private final PasswordResetRepo passwordResetRepo;
+    private final CodeGenerator codeGenerator;
+
 
     @Value("${login.link}")
     private String loginLink;
+
+    @Value("${password.reset.link}")
+    private String resetLink;
 
     @Override
     public Response<String> registerUser(RegistrationRequest registrationRequest)
@@ -156,8 +165,41 @@ public class AuthServiceImp implements AuthService
     }
 
     @Override
-    public Response<?> forgetPassword(String email) {
-        return null;
+    public Response<?> forgetPassword(String email)
+    {
+        UserEntity user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new NotFoundException("User Not Found"));
+
+        passwordResetRepo.deleteByUserId(user.getId());
+
+        String code = codeGenerator.generateUniqueCode();
+
+        PasswordResetCode resetCode = PasswordResetCode.builder()
+                .user(user)
+                .code(code)
+                .expiryDate(calculateExpiryDate())
+                .used(false)
+                .build();
+
+        passwordResetRepo.save(resetCode);
+
+        //send email reset link out
+        NotificationDto passwordResetEmail = NotificationDto.builder()
+                .recipient(user.getEmail())
+                .subject("Password Reset Code")
+                .templateName("password-reset")
+                .templateVariables(Map.of( // Using Map.of() for concise, immutable map creation
+                        "name", user.getName(),
+                        "resetLink", resetLink + code
+                ))
+                .build();
+
+        notificationService.sendMail(passwordResetEmail, user);
+
+        return Response.builder()
+                .statusCode(200)
+                .message("Password reset code sent to your email")
+                .build();
     }
 
     @Override
@@ -199,6 +241,10 @@ public class AuthServiceImp implements AuthService
                 .build();
 
         notificationService.sendMail(welcomeEmail, user);
+    }
+
+    private LocalDateTime calculateExpiryDate() {
+        return LocalDateTime.now().plusHours(5);
     }
 
 }

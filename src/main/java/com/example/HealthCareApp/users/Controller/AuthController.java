@@ -4,6 +4,7 @@ import com.example.HealthCareApp.res.Response;
 import com.example.HealthCareApp.users.Dto.LoginRequest;
 import com.example.HealthCareApp.users.Dto.LoginResponse;
 import com.example.HealthCareApp.users.Dto.RegistrationRequest;
+import com.example.HealthCareApp.users.Dto.ResetPasswordRequest;
 import com.example.HealthCareApp.users.Service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -29,4 +30,10 @@ public class AuthController
     {
         return ResponseEntity.ok(authService.login(loginRequest));
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Response<?>> forgotPassword(@RequestBody ResetPasswordRequest resetPasswordRequest){
+        return ResponseEntity.ok(authService.forgetPassword(resetPasswordRequest.getEmail()));
+    }
+
 }
