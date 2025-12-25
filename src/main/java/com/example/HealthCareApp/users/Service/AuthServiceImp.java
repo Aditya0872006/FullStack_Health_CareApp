@@ -26,6 +26,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -203,8 +204,50 @@ public class AuthServiceImp implements AuthService
     }
 
     @Override
-    public Response<?> resetPasswordViaCode(ResetPasswordRequest resetPasswordRequest) {
-        return null;
+    public Response<?> resetPasswordViaCode(ResetPasswordRequest resetPasswordRequest)
+    {
+        String code = resetPasswordRequest.getCode();
+        String newPassword = resetPasswordRequest.getNewPassword();
+
+
+
+
+        // Find and validate code
+        PasswordResetCode resetCode = passwordResetRepo.findByCode(code)
+                .orElseThrow(() -> new BadRequestException("Invalid reset code"));
+
+        // Check expiration first
+        if (resetCode.getExpiryDate().isBefore(LocalDateTime.now())) {
+            passwordResetRepo.delete(resetCode); // Clean up expired code
+            throw new BadRequestException("Reset code has expired");
+        }
+
+        //update the password
+        UserEntity user = resetCode.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepo.save(user);
+
+        // Delete the code immediately after successful use
+        passwordResetRepo.delete(resetCode);
+
+
+        // Send password confirmation email
+        NotificationDto passwordResetEmail = NotificationDto.builder()
+                .recipient(user.getEmail())
+                .subject("Password Updated Successfully")
+                .templateName("password-update-confirmation")
+                .templateVariables(Map.of(
+                        "name", user.getName()
+                ))
+                .build();
+
+        notificationService.sendMail(passwordResetEmail, user);
+
+        return Response.builder()
+                .statusCode(HttpStatus.OK.value())
+                .message("Password updated successfully")
+                .build();
+
     }
 
     private void createPatientProfile(UserEntity user)

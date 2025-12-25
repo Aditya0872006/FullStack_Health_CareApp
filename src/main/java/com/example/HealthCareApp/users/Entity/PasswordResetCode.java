@@ -3,6 +3,7 @@ package com.example.HealthCareApp.users.Entity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 @Table(name = "password_reset_code")
 @AllArgsConstructor
 @NoArgsConstructor
+@Getter
 
 public class PasswordResetCode {
 
