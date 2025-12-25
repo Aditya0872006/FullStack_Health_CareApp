@@ -12,14 +12,20 @@ import com.example.HealthCareApp.users.Repository.UserRepo;
 import lombok.RequiredArgsConstructor;
 import org.apache.catalina.User;
 import org.modelmapper.ModelMapper;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +35,8 @@ public class UserServiceImp implements UserService
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
+
+    private final String uploadDir="uploads/profile-pictures";
 
     @Override
     public UserEntity getCurrentUser()
@@ -125,7 +133,50 @@ public class UserServiceImp implements UserService
     }
 
     @Override
-    public Response<?> uploadProfilePicture(MultipartFile file) {
-        return null;
+    public Response<?> uploadProfilePicture(MultipartFile file)
+    {
+        UserEntity user=getCurrentUser();
+        try {
+            Path uploadPath = Paths.get(uploadDir);
+
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            if (user.getProfilePictreUrl() != null && !user.getProfilePictreUrl().isEmpty()) {
+                Path oldFile = Paths.get(user.getProfilePictreUrl());
+                if (Files.exists(oldFile)) {
+                    Files.delete(oldFile);
+                }
+            }
+
+            // Generate a unique file name to avoid conflicts
+            String originalFileName = file.getOriginalFilename();
+            String fileExtension = "";
+            if (originalFileName != null && originalFileName.contains(".")) {
+                fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
+            }
+
+            String newFileName = UUID.randomUUID() + fileExtension;
+            Path filePath = uploadPath.resolve(newFileName);
+
+            Files.copy(file.getInputStream(), filePath);
+
+//            String fileUrl = uploadDir + newFileName;
+            String fileUrl = "/profile-picture/" + newFileName;
+
+
+            user.setProfilePictreUrl(fileUrl);
+            userRepo.save(user);
+
+            return Response.builder()
+                    .statusCode(HttpStatus.OK.value())
+                    .message("Profile picture uploaded successfully.")
+                    .data(fileUrl)
+                    .build();
+
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage());
+        }
     }
 }
