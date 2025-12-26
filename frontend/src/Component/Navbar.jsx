@@ -51,7 +51,7 @@ const Navbar = () => {
                 <div className="container">
                     <div className="navbar-content">
                         <Link to="/" className="logo">
-                            Health CareApp
+                            eHealthHub
                         </Link>
 
                         <div className="nav-links">
