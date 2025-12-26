@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -75,6 +76,7 @@ public class ConsultationServiceImp implements ConsultationService{
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Response<ConsultationDto> getConsultationByAppointmentId(Long appointmentId)
     {
 
@@ -90,6 +92,7 @@ public class ConsultationServiceImp implements ConsultationService{
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Response<List<ConsultationDto>> getConsultationHistoryForPatient(Long patientId)
     {
         UserEntity user = userService.getCurrentUser();
