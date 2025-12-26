@@ -17,6 +17,7 @@ import com.example.HealthCareApp.users.Entity.UserEntity;
 import com.example.HealthCareApp.users.Service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.catalina.User;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 
@@ -118,19 +119,160 @@ public class AppointmentServiceImp implements AppointmentService
     }
 
     @Override
-    public Response<List<AppointmentDto>> getMyAppointments() {
-        return null;
+    public Response<List<AppointmentDto>> getMyAppointments()
+    {
+        UserEntity user=userService.getCurrentUser();
+        Long userId = user.getId();
+
+        List<Appointment> appointments;
+
+        // Check for "DOCTOR" role
+        boolean isDoctor = user.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("DOCTOR"));
+
+        if (isDoctor) {
+            // 1. Check for Doctor profile existence (required to throw the correct exception)
+            doctorRepo.findByUser(user)
+                    .orElseThrow(() -> new NotFoundExecption("Doctor profile not found."));
+
+            // 2. Efficiently fetch appointments of the Doctor
+            appointments = appointmentRepo.findByDoctor_User_IdOrderByIdDesc(userId);
+
+        } else {
+
+            // 1. Check for Patient profile existence
+            patientRepo.findByUser(user)
+                    .orElseThrow(() -> new NotFoundExecption("Patient profile not found."));
+
+            // 2. Efficiently fetch appointments using the User ID to navigate Patient relationship
+            appointments = appointmentRepo.findByPatient_User_IdOrderByIdDesc(userId);
+        }
+        // Convert the list of entities to DTOs in a single step
+        List<AppointmentDto> appointmentDTOList = appointments.stream()
+                .map(appointment -> modelMapper.map(appointment, AppointmentDto.class))
+                .toList();
+
+        return Response.<List<AppointmentDto>>builder()
+                .statusCode(200)
+                .message("Appointments retrieved successfully.")
+                .data(appointmentDTOList)
+                .build();
     }
 
     @Override
-    public Response<AppointmentDto> cancelAppointment(Long appointmentId) {
-        return null;
+    public Response<AppointmentDto> cancelAppointment(Long appointmentId)
+    {
+        UserEntity user=userService.getCurrentUser();
+        Appointment appointment = appointmentRepo.findById(appointmentId)
+                .orElseThrow(() -> new NotFoundExecption("Appointment not found."));
+
+
+        // Add security check: only the patient or doctor involved can cancel
+        boolean isOwner = appointment.getPatient().getUser().getId().equals(user.getId()) ||
+                appointment.getDoctor().getUser().getId().equals(user.getId());
+
+        if (!isOwner) {
+            throw new BadRequestException("You do not have permission to cancel this appointment.");
+        }
+
+        // Update status
+        appointment.setStatus(AppintmentStatus.CANCELLED);
+        Appointment savedAppointment = appointmentRepo.save(appointment);
+
+        // NOTE: Notification should be sent to the other party (patient/doctor)
+        sendAppointmentCancellation(savedAppointment, user);
+
+        return Response.<AppointmentDto>builder()
+                .statusCode(200)
+                .message("Appointment cancelled successfully.")
+                .build();
     }
 
     @Override
-    public Response<?> completeAppointment(Long appointmentId) {
-        return null;
+    public Response<?> completeAppointment(Long appointmentId)
+    {
+        // Get the current user (must be the Doctor)
+        UserEntity currentUser = userService.getCurrentUser();
+
+        // 1. Fetch the appointment
+        Appointment appointment = appointmentRepo.findById(appointmentId)
+                .orElseThrow(() -> new NotFoundExecption("Appointment not found with ID: " + appointmentId));
+
+        // Security Check 1: Ensure the current user is the Doctor assigned to this appointment
+        if (!appointment.getDoctor().getUser().getId().equals(currentUser.getId())) {
+            throw new BadRequestException("Only the assigned doctor can mark this appointment as complete.");
+        }
+
+        // 2. Update status and end time
+        appointment.setStatus(AppintmentStatus.COMPLETED);
+        appointment.setEndTime(LocalDateTime.now());
+
+        Appointment updatedAppointment = appointmentRepo.save(appointment);
+
+        modelMapper.map(updatedAppointment, AppointmentDto.class);
+
+        return Response.builder()
+                .statusCode(200)
+                .message("Appointment successfully marked as completed. You may now proceed to create the consultation notes.")
+                .build();
     }
+
+
+    private void sendAppointmentCancellation(Appointment appointment, UserEntity cancelingUser){
+
+        UserEntity patientUser = appointment.getPatient().getUser();
+        UserEntity doctorUser = appointment.getDoctor().getUser();
+
+        // Safety check to ensure the cancellingUser is involved
+        boolean isOwner = patientUser.getId().equals(cancelingUser.getId()) || doctorUser.getId().equals(cancelingUser.getId());
+        if (!isOwner) {
+            log.error("Cancellation initiated by user not associated with appointment. User ID: {}", cancelingUser.getId());
+            return;
+        }
+
+        String formattedTime = appointment.getStartTime().format(FORMATTER);
+        String cancellingPartyName = cancelingUser.getName();
+
+
+        // --- Common Variables for the Template ---
+        Map<String, Object> baseVars = new HashMap<>();
+        baseVars.put("cancellingPartyName", cancellingPartyName);
+        baseVars.put("appointmentTime", formattedTime);
+        baseVars.put("doctorName", appointment.getDoctor().getLastName());
+        baseVars.put("patientFullName", patientUser.getName());
+
+        // --- 1. Dispatch Email to Doctor ---
+        Map<String, Object> doctorVars = new HashMap<>(baseVars);
+        doctorVars.put("recipientName", doctorUser.getName());
+
+        NotificationDto doctorNotification = NotificationDto.builder()
+                .recipient(doctorUser.getEmail())
+                .subject("DAT Health: Appointment Cancellation")
+                .templateName("appointment-cancellation")
+                .templateVariables(doctorVars)
+                .build();
+
+        notificationService.sendMail(doctorNotification, doctorUser);
+        log.info("Dispatched cancellation email to Doctor: {}", doctorUser.getEmail());
+
+
+        // --- 2. Dispatch Email to Patient ---
+        Map<String, Object> patientVars = new HashMap<>(baseVars);
+        patientVars.put("recipientName", patientUser.getName());
+
+        NotificationDto patientNotification = NotificationDto.builder()
+                .recipient(patientUser.getEmail())
+                .subject("DAT Health: Appointment CANCELED (ID: " + appointment.getId() + ")")
+                .templateName("appointment-cancellation")
+                .templateVariables(patientVars)
+                .build();
+
+        notificationService.sendMail(patientNotification, patientUser);
+        log.info("Dispatched cancellation email to Patient: {}", patientUser.getEmail());
+
+    }
+
+
 
     private void sendAppointmentConfirmation(Appointment appointment) {
 
@@ -149,7 +291,7 @@ public class AppointmentServiceImp implements AppointmentService
 
         NotificationDto patientNotification = NotificationDto.builder()
                 .recipient(patientUser.getEmail())
-                .subject("DAT Health: Your Appointment is Confirmed")
+                .subject("HealthCare_App: Your Appointment is Confirmed")
                 .templateName("patient-appointment")
                 .templateVariables(patientVars)
                 .build();
@@ -173,7 +315,7 @@ public class AppointmentServiceImp implements AppointmentService
 
         NotificationDto doctorNotification = NotificationDto.builder()
                 .recipient(doctorUser.getEmail())
-                .subject("DAT Health: New Appointment Booked")
+                .subject("HealthCare_App: New Appointment Booked")
                 .templateName("doctor-appointment")
                 .templateVariables(doctorVars)
                 .build();
