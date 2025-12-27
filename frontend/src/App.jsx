@@ -11,6 +11,7 @@ import ResetPassword from './Pages/ResetPassword ';
 import Profile from './Pages/Profile';
 import UpdateProfile from './Pages/UpdateProfile ';
 import UpdatePassword from './Pages/UpdatePassword ';
+import BookAppointment from './Pages/BookAppointment';
 
 
 
@@ -33,6 +34,7 @@ function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/update-profile" element={<UpdateProfile />} />
           <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="/book-appointment" element={<BookAppointment />} />
           
         </Routes>
       </main>

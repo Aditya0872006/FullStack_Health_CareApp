@@ -14,7 +14,7 @@ public class GlobalExceptionHandler
     {
         Response<?> response = Response.builder()
                 .statusCode(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .message(ex.getMessage())
+                .message("some thing went wrong check value again")
                 .build();
         return new ResponseEntity<>(response,HttpStatus.INTERNAL_SERVER_ERROR);
     }

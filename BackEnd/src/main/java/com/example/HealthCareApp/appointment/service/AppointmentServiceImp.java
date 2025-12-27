@@ -15,6 +15,7 @@ import com.example.HealthCareApp.patient.repository.PatientRepo;
 import com.example.HealthCareApp.res.Response;
 import com.example.HealthCareApp.users.Entity.UserEntity;
 import com.example.HealthCareApp.users.Service.UserService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.catalina.User;
@@ -44,6 +45,7 @@ public class AppointmentServiceImp implements AppointmentService
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("EEEE, MMM dd, yyyy 'at' hh:mm a");
     @Override
+    @Transactional
     public Response<AppointmentDto> bookAppointment(AppointmentDto appointmentDTO)
     {
         UserEntity currentuser=userService.getCurrentUser();
