@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.data.crossstore.ChangeSetPersister;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.AccessDeniedException;
 import java.util.Arrays;
@@ -29,10 +30,12 @@ public class PatientServiceImp implements PatientService
     private final UserService userService;
     private final ModelMapper modelMapper;
     @Override
+    @Transactional(readOnly = true)
     public Response<PatientDto> getPatientProfile()
     {
         UserEntity user = userService.getCurrentUser();
         Patient patient=patientRepo.findByUser(user).orElseThrow(()->new NotFoundExecption("not found"));
+
 
 
         return Response.<PatientDto>builder()
