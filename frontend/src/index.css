@@ -369,6 +369,7 @@ main {
 .stat-label {
     font-size: 0.9rem;
     opacity: 0.8;
+    color: white !important;
 }
 
 .hero-actions {
