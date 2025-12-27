@@ -24,7 +24,7 @@ public class UserDto
     @JsonIgnore
     private String password;
 
-    private String profilePictreUrl;
+    private String profilePictureUrl;
 
     private Set<RoleEntity> roles;
 }

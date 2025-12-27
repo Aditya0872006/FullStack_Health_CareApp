@@ -8,6 +8,7 @@ import Login from './Pages/Login';
 import DoctorRegister from './Pages/DoctorRegister ';
 import ForgotPassword from './Pages/ForgotPassword';
 import ResetPassword from './Pages/ResetPassword ';
+import Profile from './Pages/Profile';
 
 
 
@@ -27,6 +28,7 @@ function App() {
           <Route path="/register-doctor" element={<DoctorRegister />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/profile" element={<Profile />} />
           
         </Routes>
       </main>

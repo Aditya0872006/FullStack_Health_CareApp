@@ -36,7 +36,7 @@ public class UserServiceImp implements UserService
     private final PasswordEncoder passwordEncoder;
     private final NotificationService notificationService;
 
-    private final String uploadDir="uploads/profile-pictures";
+    private final String uploadDir = "uploads/profile-pictures";
 
     @Override
     public UserEntity getCurrentUser()
@@ -142,11 +142,10 @@ public class UserServiceImp implements UserService
                 Files.createDirectories(uploadPath);
             }
 
-            if (user.getProfilePictreUrl() != null && !user.getProfilePictreUrl().isEmpty()) {
-                Path oldFile = Paths.get(user.getProfilePictreUrl());
-                if (Files.exists(oldFile)) {
-                    Files.delete(oldFile);
-                }
+            if (user.getProfilePictureUrl() != null) {
+                Path oldFile = Paths.get(uploadDir)
+                        .resolve(Paths.get(user.getProfilePictureUrl()).getFileName());
+                Files.deleteIfExists(oldFile);
             }
 
             // Generate a unique file name to avoid conflicts
@@ -161,11 +160,11 @@ public class UserServiceImp implements UserService
 
             Files.copy(file.getInputStream(), filePath);
 
-//            String fileUrl = uploadDir + newFileName;
-            String fileUrl = "/profile-picture/" + newFileName;
+            String fileUrl = "/profile-pictures/" + newFileName;
 
 
-            user.setProfilePictreUrl(fileUrl);
+
+            user.setProfilePictureUrl(fileUrl);
             userRepo.save(user);
 
             return Response.builder()

@@ -32,7 +32,7 @@ public class UserEntity
     @Column(nullable = false)
     private String password;
 
-    private String profilePictreUrl;
+    private String profilePictureUrl;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(name = "user_roles", joinColumns = @JoinColumn(name = "user_id"),
