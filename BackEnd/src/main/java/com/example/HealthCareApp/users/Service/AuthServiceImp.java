@@ -22,6 +22,7 @@ import com.example.HealthCareApp.users.Entity.PasswordResetCode;
 import com.example.HealthCareApp.users.Entity.UserEntity;
 import com.example.HealthCareApp.users.Repository.PasswordResetRepo;
 import com.example.HealthCareApp.users.Repository.UserRepo;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import java.time.LocalDateTime;
@@ -166,6 +167,7 @@ public class AuthServiceImp implements AuthService
     }
 
     @Override
+    @Transactional
     public Response<?> forgetPassword(String email)
     {
         UserEntity user = userRepo.findByEmail(email)
@@ -204,6 +206,7 @@ public class AuthServiceImp implements AuthService
     }
 
     @Override
+    @Transactional
     public Response<?> resetPasswordViaCode(ResetPasswordRequest resetPasswordRequest)
     {
         String code = resetPasswordRequest.getCode();
