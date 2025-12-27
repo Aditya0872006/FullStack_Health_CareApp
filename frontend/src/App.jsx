@@ -10,6 +10,7 @@ import ForgotPassword from './Pages/ForgotPassword';
 import ResetPassword from './Pages/ResetPassword ';
 import Profile from './Pages/Profile';
 import UpdateProfile from './Pages/UpdateProfile ';
+import UpdatePassword from './Pages/UpdatePassword ';
 
 
 
@@ -31,6 +32,7 @@ function App() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/update-profile" element={<UpdateProfile />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
           
         </Routes>
       </main>
