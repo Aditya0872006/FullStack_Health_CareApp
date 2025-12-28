@@ -13,6 +13,7 @@ import UpdateProfile from './Pages/UpdateProfile ';
 import UpdatePassword from './Pages/UpdatePassword ';
 import BookAppointment from './Pages/BookAppointment';
 import MyAppointments from './Pages/MyAppointments ';
+import ConsultationHistory from './Pages/ConsultationHistory ';
 
 
 
@@ -37,6 +38,7 @@ function App() {
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/book-appointment" element={<BookAppointment />} />
           <Route path="/my-appointments" element={<MyAppointments />} />
+          <Route path="/consultation-history" element={<ConsultationHistory />} />
 
 
            <Route path="*" element={<Home />} />
