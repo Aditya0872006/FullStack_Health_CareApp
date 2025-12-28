@@ -8,6 +8,7 @@ import com.example.HealthCareApp.exception.NotFoundExecption;
 import com.example.HealthCareApp.res.Response;
 import com.example.HealthCareApp.users.Entity.UserEntity;
 import com.example.HealthCareApp.users.Service.UserService;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
@@ -40,6 +41,7 @@ public class DoctorServiceImp implements DoctorService
     }
 
     @Override
+    @Transactional
     public Response<?> updateDoctorProfile(DoctorDto doctorDTO) {
 
         // 1. Get current logged-in user
@@ -48,6 +50,7 @@ public class DoctorServiceImp implements DoctorService
         // 2. Find doctor linked to this user
         Doctor doctor = doctorRepo.findByUser(user)
                 .orElseThrow(() -> new NotFoundExecption("Doctor profile not found"));
+        log.info("Before update: {}", doctor);
 
         // 3. Update fields only if provided
         if (doctorDTO.getFirstName() != null) {
@@ -67,7 +70,9 @@ public class DoctorServiceImp implements DoctorService
         }
 
         // 4. Save updated doctor
-        Doctor updatedDoctor = doctorRepo.save(doctor);
+        Doctor updatedDoctor = doctorRepo.saveAndFlush(doctor);
+
+        log.info("After update: {}", updatedDoctor);
 
         // 5. Return response
         return Response.<DoctorDto>builder()

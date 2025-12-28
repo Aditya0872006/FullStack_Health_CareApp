@@ -177,7 +177,7 @@ const DoctorProfile = () => {
                             <p className="profile-subtitle">Dr. {userData?.name}</p>
                             {doctorData && (
                                 <p className="profile-specialization">
-                                    {formatSpecialization(doctorData.specialization)}
+                                    {formatSpecialization(doctorData.specilization)}
                                 </p>
                             )}
                         </div>
@@ -237,7 +237,7 @@ const DoctorProfile = () => {
                                 </div>
                                 <div className="info-item">
                                     <label className="info-label">Specialization</label>
-                                    <div className="info-value">{formatSpecialization(doctorData.specialization)}</div>
+                                    <div className="info-value">{formatSpecialization(doctorData.specilization)}</div>
                                 </div>
                                 <div className="info-item">
                                     <label className="info-label">Doctor ID</label>

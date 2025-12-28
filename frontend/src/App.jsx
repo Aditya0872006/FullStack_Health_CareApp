@@ -15,6 +15,7 @@ import BookAppointment from './Pages/BookAppointment';
 import MyAppointments from './Pages/MyAppointments ';
 import ConsultationHistory from './Pages/ConsultationHistory ';
 import DoctorProfile from './Pages/DoctorProfile ';
+import UpdateDoctorProfile from './Pages/UpdateDoctorProfile';
 
 
 
@@ -41,6 +42,7 @@ function App() {
           <Route path="/my-appointments" element={<MyAppointments />} />
           <Route path="/consultation-history" element={<ConsultationHistory />} />
           <Route path="/doctor/profile" element={<DoctorProfile />} />
+          <Route path="/doctor/update-profile" element={<UpdateDoctorProfile />} />
 
 
            <Route path="*" element={<Home />} />
