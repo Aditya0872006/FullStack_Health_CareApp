@@ -12,6 +12,7 @@ import Profile from './Pages/Profile';
 import UpdateProfile from './Pages/UpdateProfile ';
 import UpdatePassword from './Pages/UpdatePassword ';
 import BookAppointment from './Pages/BookAppointment';
+import MyAppointments from './Pages/MyAppointments ';
 
 
 
@@ -35,6 +36,10 @@ function App() {
           <Route path="/update-profile" element={<UpdateProfile />} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/book-appointment" element={<BookAppointment />} />
+          <Route path="/my-appointments" element={<MyAppointments />} />
+
+
+           <Route path="*" element={<Home />} />
           
         </Routes>
       </main>

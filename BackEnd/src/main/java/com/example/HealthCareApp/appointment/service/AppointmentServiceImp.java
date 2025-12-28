@@ -121,6 +121,7 @@ public class AppointmentServiceImp implements AppointmentService
     }
 
     @Override
+    @Transactional
     public Response<List<AppointmentDto>> getMyAppointments()
     {
         UserEntity user=userService.getCurrentUser();
@@ -162,6 +163,7 @@ public class AppointmentServiceImp implements AppointmentService
     }
 
     @Override
+    @Transactional
     public Response<AppointmentDto> cancelAppointment(Long appointmentId)
     {
         UserEntity user=userService.getCurrentUser();
