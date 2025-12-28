@@ -4,11 +4,11 @@ import { apiService } from '../Services/Api';
 
 
 
-const Profile = () => {
+const DoctorProfile = () => {
 
-    const [userData, setUserData] = useState(null)
-    const [patientData, setPatientData] = useState(null)
 
+    const [userData, setUserData] = useState(null);
+    const [doctorData, setDoctorData] = useState(null);
     const [error, setError] = useState('');
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState('');
@@ -17,16 +17,15 @@ const Profile = () => {
 
 
     useEffect(() => {
-        fetchUserData();
+        fetchDoctorData();
     }, [])
+
 
     useEffect(() => {
     console.log('Profile picture URL:', getProfilePictureUrl());
     }, [userData]);
 
-
-    const fetchUserData = async () => {
-
+    const fetchDoctorData = async () => {
         try {
 
             // Fetch user details
@@ -35,26 +34,24 @@ const Profile = () => {
             if (userResponse.data.statusCode === 200) {
                 setUserData(userResponse.data.data);
 
-                // Fetch patient profile if user is a patient
-                if (userResponse.data.data.roles.some(role => role.name === 'PATIENT')) {
-                    const patientResponse = await apiService.getMyPatientProfile();
-                    if (patientResponse.data.statusCode === 200) {
-                        setPatientData(patientResponse.data.data);
-                    }
+                // Fetch doctor profile
+                const doctorResponse = await apiService.getMyDoctorProfile();
+                if (doctorResponse.data.statusCode === 200) {
+                    setDoctorData(doctorResponse.data.data);
                 }
-
             }
 
         } catch (error) {
-
             setError('Failed to load profile data');
-            console.error('Error fetching profile:', error);
+            console.error('Error fetching doctor profile:', error);
+
         }
     }
 
 
+
     const handleUpdateProfile = () => {
-        navigate('/update-profile');
+        navigate('/doctor/update-profile');
     };
 
     const handleUpdatePassword = () => {
@@ -63,20 +60,19 @@ const Profile = () => {
 
 
     const handleProfilePictureChange = async (event) => {
-
         const file = event.target.files[0];
         if (!file) return;
 
         // Validate file type
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', ];
+        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         if (!validTypes.includes(file.type)) {
             setUploadError('Please select a valid image file (JPEG, PNG, GIF)');
             return;
         }
 
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-            setUploadError('File size must be less than 5MB');
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            setUploadError('File size must be less than 10MB');
             return;
         }
 
@@ -89,7 +85,7 @@ const Profile = () => {
             if (response.data.statusCode === 200) {
                 setUploadSuccess('Profile picture updated successfully!');
                 // Refresh user data to get the new profile picture URL
-                fetchUserData();
+                fetchDoctorData();
                 // Clear the file input
                 event.target.value = '';
             } else {
@@ -102,25 +98,21 @@ const Profile = () => {
         }
     };
 
-    const formatDate = (dateString) => {
-        if (!dateString) return 'Not provided';
-        return new Date(dateString).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
+
+
+    const formatSpecialization = (spec) => {
+        if (!spec) return 'Not specified';
+        return spec.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
     };
 
-    const formatBloodGroup = (bloodGroup) => {
-        if (!bloodGroup) return 'Not provided';
-        return bloodGroup.replace('_', ' ');
-    };
 
     // Construct full URL for profile picture
     const getProfilePictureUrl = () => {
-    if (!userData?.profilePictureUrl) return null;
-    return `http://localhost:8086${userData.profilePictureUrl}`;
-};
+
+        console.log("PRofile url is: ", userData?.profilePictureUrl)
+        if (!userData?.profilePictureUrl) return null;
+        return `http://localhost:8086${userData.profilePictureUrl}`;
+    };
 
 
     if (error) {
@@ -134,11 +126,6 @@ const Profile = () => {
     }
 
 
-
-
-
-
-
     return (
         <div className="container">
             <div className="profile-container">
@@ -147,25 +134,25 @@ const Profile = () => {
                         <div className="profile-picture-section">
                             <div className="profile-picture-container">
                                 {getProfilePictureUrl() ? (
-                                                                <img
-                                    src={getProfilePictureUrl()}
-                                    alt="Profile"
-                                    className="profile-picture"
-                                    onError={(e) => {
-                                        console.error("Image failed:", e.target.src);
-                                        e.target.style.display = "none";
-                                    }}
-                                />
+                                    <img
+                                        src={getProfilePictureUrl()}
+                                        alt="Profile"
+                                        className="profile-picture"
+                                        onError={(e) => {
+                                            e.target.style.display = 'none';
+                                            e.target.nextSibling.style.display = 'flex';
+                                        }}
+                                    />
                                 ) : null}
                                 <div className={`profile-picture-placeholder ${getProfilePictureUrl() ? 'hidden' : ''}`}>
-                                    {userData?.name?.charAt(0)?.toUpperCase() || 'U'}
+                                    {userData?.name?.charAt(0)?.toUpperCase() || 'D'}
                                 </div>
                                 <div className="profile-picture-overlay">
-                                    <label htmlFor="profile-picture-upload" className="upload-label">
+                                    <label htmlFor="doctor-profile-picture-upload" className="upload-label">
                                         {uploading ? 'Uploading...' : 'Change Photo'}
                                     </label>
                                     <input
-                                        id="profile-picture-upload"
+                                        id="doctor-profile-picture-upload"
                                         type="file"
                                         accept="image/*"
                                         onChange={handleProfilePictureChange}
@@ -186,8 +173,13 @@ const Profile = () => {
                             )}
                         </div>
                         <div className="profile-title-section">
-                            <h1 className="profile-title">My Profile</h1>
-                            <p className="profile-subtitle">{userData?.name}</p>
+                            <h1 className="profile-title">Doctor Profile</h1>
+                            <p className="profile-subtitle">Dr. {userData?.name}</p>
+                            {doctorData && (
+                                <p className="profile-specialization">
+                                    {formatSpecialization(doctorData.specialization)}
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -198,14 +190,8 @@ const Profile = () => {
                         <button onClick={handleUpdatePassword} className="btn btn-secondary">
                             Update Password
                         </button>
-                        <Link to="/book-appointment" className="btn btn-primary">
-                            Book Appointment
-                        </Link>
-                        <Link to="/my-appointments" className="btn btn-secondary">
+                        <Link to="/doctor/appointments" className="btn btn-primary">
                             My Appointments
-                        </Link>
-                        <Link to="/consultation-history" className="btn btn-outline">
-                            Consultation History
                         </Link>
                     </div>
                 </div>
@@ -223,10 +209,10 @@ const Profile = () => {
                                 <label className="info-label">Email</label>
                                 <div className="info-value">{userData?.email || 'Not provided'}</div>
                             </div>
-                            {/* <div className="info-item">
+                            <div className="info-item">
                                 <label className="info-label">User ID</label>
                                 <div className="info-value">{userData?.id || 'Not provided'}</div>
-                            </div> */}
+                            </div>
                             <div className="info-item">
                                 <label className="info-label">Roles</label>
                                 <div className="info-value">
@@ -236,61 +222,41 @@ const Profile = () => {
                         </div>
                     </div>
 
-                    {/* Patient Information Section */}
-                    {patientData && (
+                    {/* Doctor Information Section */}
+                    {doctorData && (
                         <div className="profile-section">
-                            <h2 className="section-title">Medical Information</h2>
+                            <h2 className="section-title">Professional Information</h2>
                             <div className="info-grid">
                                 <div className="info-item">
                                     <label className="info-label">First Name</label>
-                                    <div className="info-value">{patientData.firstName || 'Not provided'}</div>
+                                    <div className="info-value">{doctorData.firstName || 'Not provided'}</div>
                                 </div>
                                 <div className="info-item">
                                     <label className="info-label">Last Name</label>
-                                    <div className="info-value">{patientData.lastName || 'Not provided'}</div>
+                                    <div className="info-value">{doctorData.lastName || 'Not provided'}</div>
                                 </div>
                                 <div className="info-item">
-                                    <label className="info-label">Phone</label>
-                                    <div className="info-value">{patientData.phone || 'Not provided'}</div>
+                                    <label className="info-label">Specialization</label>
+                                    <div className="info-value">{formatSpecialization(doctorData.specialization)}</div>
                                 </div>
                                 <div className="info-item">
-                                    <label className="info-label">Date of Birth</label>
-                                    <div className="info-value">{formatDate(patientData.dateOfBirth)}</div>
-                                </div>
-                                <div className="info-item">
-                                    <label className="info-label">Blood Group</label>
-                                    <div className="info-value">{formatBloodGroup(patientData.bloodGroup)}</div>
-                                </div>
-                                <div className="info-item">
-                                    <label className="info-label">Genotype</label>
-                                    <div className="info-value">{patientData.genotype || 'Not provided'}</div>
-                                </div>
-                                <div className="info-item full-width">
-                                    <label className="info-label">Known Allergies</label>
-                                    <div className="info-value">
-                                        {patientData.knownAllergies || 'No known allergies'}
-                                    </div>
+                                    <label className="info-label">Doctor ID</label>
+                                    <div className="info-value">{doctorData.id || 'Not provided'}</div>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {!patientData && (
+                    {!doctorData && (
                         <div className="profile-section">
                             <div className="alert alert-info">
-                                <p>No patient profile found. Please update your profile to add medical information.</p>
+                                <p>No doctor profile found. Please update your profile to add professional information.</p>
                             </div>
                         </div>
                     )}
-                    
-
                 </div>
             </div>
         </div>
-
     );
-
 }
-
-
-export default Profile;
+export default DoctorProfile;
