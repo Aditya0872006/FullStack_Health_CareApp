@@ -35,6 +35,7 @@ public class ConsultationServiceImp implements ConsultationService{
     private final PatientRepo patientRepo;
 
     @Override
+    @Transactional
     public Response<ConsultationDto> createConsultation(ConsultationDto consultationDTO)
     {
         UserEntity user = userService.getCurrentUser();
