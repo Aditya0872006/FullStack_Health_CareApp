@@ -135,6 +135,14 @@ const MyAppointments = () => {
                                             </button>
                                         )}
                                     </div>
+                                    <div className="appointment-actions">
+                                        <button
+                                                onClick={() => handleCancelAppointment(appointment.id)}
+                                                className="btn btn-danger btn-sm"
+                                            >
+                                                Reshedule
+                                            </button>
+                                    </div>
                                 </div>
 
                                 <div className="appointment-details">
