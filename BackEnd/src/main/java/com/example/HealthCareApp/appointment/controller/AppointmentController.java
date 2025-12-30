@@ -43,10 +43,11 @@ public class AppointmentController {
 
     @PutMapping("/{id}/reschedule")
     public ResponseEntity<Response<AppointmentDto>>
-    rescheduleAppointment(@PathVariable Long appointmentId,
-                            @RequestBody RescheduleAppointmentDto dto)
+    rescheduleAppointment(@PathVariable Long id,
+                            @RequestBody @Valid RescheduleAppointmentDto dto)
     {
-        return ResponseEntity.ok(appointmentService.rescheduleAppointment(appointmentId,dto));
+
+        return ResponseEntity.ok(appointmentService.rescheduleAppointment(id,dto));
     }
 
 }

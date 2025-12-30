@@ -223,6 +223,7 @@ public class AppointmentServiceImp implements AppointmentService
     }
 
     @Override
+    @Transactional
     public Response<AppointmentDto> rescheduleAppointment(Long AppointmentId, RescheduleAppointmentDto rescheduleAppointmentDto)
     {
         UserEntity currentUser = userService.getCurrentUser();
@@ -264,6 +265,9 @@ public class AppointmentServiceImp implements AppointmentService
         appointmentRepo.save(appointment);
 
         sendAppointmentConfirmation(appointment);
+
+        log.info("Reschedule request received for appointmentId={}");
+        log.info("New start time received: {}", rescheduleAppointmentDto.getNewStartTime());
 
         return Response.<AppointmentDto>builder()
                 .statusCode(200)

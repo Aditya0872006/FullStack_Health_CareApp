@@ -91,6 +91,9 @@ export const apiService = {
     getMyAppointments: () => api.get("/appointments"),
     cancelAppointment: (appointmentId) => api.put(`/appointments/cancel/${appointmentId}`),
     completeAppointment: (appointmentId) => api.put(`/appointments/complete/${appointmentId}`),
+    rescheduleAppointment: (id, data) =>
+    api.put(`/appointments/${id}/reschedule`, data),
+
 
     // CONSULTATION MANAGEMENT
     createConsultation: (consultationDTO) => api.post("/consultations", consultationDTO),

@@ -9,6 +9,9 @@ const MyAppointments = () => {
 
     const [appointments, setAppointments] = useState([]);
     const [error, setError] = useState('');
+    const [rescheduleId, setRescheduleId] = useState(null);
+    const [newDateTime, setNewDateTime] = useState('');
+
 
     useEffect(() => {
         fetchAppointments();
@@ -88,6 +91,35 @@ const MyAppointments = () => {
         );
     }
 
+    
+
+
+const submitReschedule = async (appointmentId) => {
+    if (!newDateTime) {
+        setError("Please select a date and time");
+        return;
+    }
+
+    try {
+        const response = await apiService.rescheduleAppointment(
+            appointmentId,
+            { newStartTime: newDateTime }
+        );
+
+        if (response.data.statusCode === 200) {
+            setRescheduleId(null);
+            setNewDateTime('');
+            fetchAppointments();
+        }
+    } catch (err) {
+        setError("Failed to reschedule appointment");
+    }
+};
+
+
+const oneHourLater = new Date(
+    Date.now() + 60 * 60 * 1000
+).toISOString().slice(0, 16);
 
 
 
@@ -135,14 +167,44 @@ const MyAppointments = () => {
                                             </button>
                                         )}
                                     </div>
-                                    <div className="appointment-actions">
-                                        <button
-                                                onClick={() => handleCancelAppointment(appointment.id)}
-                                                className="btn btn-danger btn-sm"
-                                            >
-                                                Reshedule
-                                            </button>
-                                    </div>
+                                                        {appointment.status === 'SCHEDULED' && (
+                        rescheduleId === appointment.id ? (
+                            <div className="reschedule-box">
+                                <input
+                                    type="datetime-local"
+                                    value={newDateTime}
+                                    min={oneHourLater}
+                                    onChange={(e) => setNewDateTime(e.target.value)}
+                                    className="form-input"
+                                />
+
+                                <button
+                                    className="btn btn-success btn-sm"
+                                    onClick={() => submitReschedule(appointment.id)}
+                                >
+                                    Confirm
+                                </button>
+
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={() => {
+                                        setRescheduleId(null);
+                                        setNewDateTime('');
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                className="btn btn-warning btn-sm"
+                                onClick={() => setRescheduleId(appointment.id)}
+                            >
+                                Reschedule
+                            </button>
+                        )
+                    )}
+
                                 </div>
 
                                 <div className="appointment-details">
