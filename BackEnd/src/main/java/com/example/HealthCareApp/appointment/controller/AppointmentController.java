@@ -1,6 +1,7 @@
 package com.example.HealthCareApp.appointment.controller;
 
 import com.example.HealthCareApp.appointment.dto.AppointmentDto;
+import com.example.HealthCareApp.appointment.dto.RescheduleAppointmentDto;
 import com.example.HealthCareApp.appointment.service.AppointmentService;
 import com.example.HealthCareApp.res.Response;
 import jakarta.validation.Valid;
@@ -38,6 +39,14 @@ public class AppointmentController {
     @PreAuthorize(("hasAuthority('DOCTOR')"))
     public  ResponseEntity<Response<?>> completeAppointment(@PathVariable Long appointmentId){
         return ResponseEntity.ok(appointmentService.completeAppointment(appointmentId));
+    }
+
+    @PutMapping("/{id}/reschedule")
+    public ResponseEntity<Response<AppointmentDto>>
+    rescheduleAppointment(@PathVariable Long appointmentId,
+                            @RequestBody RescheduleAppointmentDto dto)
+    {
+        return ResponseEntity.ok(appointmentService.rescheduleAppointment(appointmentId,dto));
     }
 
 }
