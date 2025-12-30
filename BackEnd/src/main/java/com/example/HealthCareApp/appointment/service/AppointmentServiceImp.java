@@ -1,6 +1,7 @@
 package com.example.HealthCareApp.appointment.service;
 
 import com.example.HealthCareApp.appointment.dto.AppointmentDto;
+import com.example.HealthCareApp.appointment.dto.RescheduleAppointmentDto;
 import com.example.HealthCareApp.appointment.entity.Appointment;
 import com.example.HealthCareApp.appointment.repository.AppointmentRepo;
 import com.example.HealthCareApp.doctor.entity.Doctor;
@@ -218,6 +219,55 @@ public class AppointmentServiceImp implements AppointmentService
         return Response.builder()
                 .statusCode(200)
                 .message("Appointment successfully marked as completed. You may now proceed to create the consultation notes.")
+                .build();
+    }
+
+    @Override
+    public Response<AppointmentDto> rescheduleAppointment(Long AppointmentId, RescheduleAppointmentDto rescheduleAppointmentDto)
+    {
+        UserEntity currentUser = userService.getCurrentUser();
+        Appointment appointment = appointmentRepo.findById(AppointmentId)
+                .orElseThrow(()->new NotFoundExecption("Appointment not foune"));
+
+        if (appointment.getStatus() != AppintmentStatus.SCHEDULED) {
+            throw new BadRequestException("Only scheduled appointments can be rescheduled");
+        }
+
+        if (!appointment.getPatient().getUser().getId().equals(currentUser.getId())) {
+            throw new BadRequestException("Unauthorized action");
+        }
+
+        LocalDateTime newStart = rescheduleAppointmentDto.getNewStartTime();
+        LocalDateTime newEnd = newStart.plusMinutes(60);
+
+        if (newStart.isBefore(LocalDateTime.now().plusHours(1))) {
+            throw new BadRequestException("Rescheduling must be done at least 1 hour in advance");
+        }
+        LocalDateTime checkStart = newStart.minusMinutes(60);
+
+        List<Appointment> conflicts =
+                appointmentRepo.findConflictingAppointments(
+                        appointment.getDoctor().getId(),
+                        checkStart,
+                        newEnd
+                );
+
+        conflicts.removeIf(a -> a.getId().equals(AppointmentId));
+
+        if (!conflicts.isEmpty()) {
+            throw new BadRequestException("Doctor is not available at this time");
+        }
+
+        appointment.setStartTime(newStart);
+        appointment.setEndTime(newEnd);
+
+        appointmentRepo.save(appointment);
+
+        sendAppointmentConfirmation(appointment);
+
+        return Response.<AppointmentDto>builder()
+                .statusCode(200)
+                .message("Appointment rescheduled successfully")
                 .build();
     }
 

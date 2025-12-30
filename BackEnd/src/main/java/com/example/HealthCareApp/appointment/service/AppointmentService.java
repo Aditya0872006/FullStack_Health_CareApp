@@ -1,6 +1,7 @@
 package com.example.HealthCareApp.appointment.service;
 
 import com.example.HealthCareApp.appointment.dto.AppointmentDto;
+import com.example.HealthCareApp.appointment.dto.RescheduleAppointmentDto;
 import com.example.HealthCareApp.res.Response;
 
 import java.util.List;
@@ -14,5 +15,8 @@ public interface AppointmentService {
     Response<AppointmentDto> cancelAppointment(Long appointmentId);
 
     Response<?> completeAppointment(Long appointmentId);
+
+    Response<AppointmentDto> rescheduleAppointment(Long AppointmentId,
+                                                   RescheduleAppointmentDto rescheduleAppointmentDto);
 
 }
