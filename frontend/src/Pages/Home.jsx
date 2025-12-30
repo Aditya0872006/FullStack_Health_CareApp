@@ -181,6 +181,11 @@ const Home = () => {
                             <h4>Ophthalmology</h4>
                             <p>Eye care and vision health</p>
                         </div>
+                        <div className="specialty-card">
+                            <div className="specialty-icon">👁️</div>
+                            <h4>Surgery</h4>
+                            <p>Eye care and vision health</p>
+                        </div>
                     </div>
                 </div>
             </section>

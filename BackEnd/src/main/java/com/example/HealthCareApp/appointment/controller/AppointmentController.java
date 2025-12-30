@@ -50,4 +50,6 @@ public class AppointmentController {
         return ResponseEntity.ok(appointmentService.rescheduleAppointment(id,dto));
     }
 
+
+
 }
