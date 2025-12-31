@@ -20,9 +20,9 @@ const Profile = () => {
         fetchUserData();
     }, [])
 
-    useEffect(() => {
-    console.log('Profile picture URL:', getProfilePictureUrl());
-    }, [userData]);
+    // useEffect(() => {
+    // console.log('Profile picture URL:', getProfilePictureUrl());
+    // }, [userData]);
 
 
     const fetchUserData = async () => {
