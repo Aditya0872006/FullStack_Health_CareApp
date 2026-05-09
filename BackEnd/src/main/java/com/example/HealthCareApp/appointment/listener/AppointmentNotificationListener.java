@@ -97,6 +97,7 @@ public class AppointmentNotificationListener {
         baseVars.put("appointmentTime",     event.getAppointmentTime().format(FORMATTER));
         baseVars.put("doctorName",          event.getDoctorName());
         baseVars.put("patientFullName",     event.getPatientName());
+        baseVars.put("isVirtual",           true);
 
         // Notify doctor
         Map<String, Object> doctorVars = new HashMap<>(baseVars);
@@ -141,6 +142,7 @@ public class AppointmentNotificationListener {
         vars.put("appointmentTime",       event.getNewAppointmentTime().format(FORMATTER));
         vars.put("meetingLink",           event.getMeetingLink());
         vars.put("purposeOfConsultation", event.getPurposeOfConsultation());
+        vars.put("isVirtual",             true);
 
         UserEntity patientUser = userRepository.findByEmail(event.getPatientEmail()).orElseThrow();
         notificationService.sendMail(
