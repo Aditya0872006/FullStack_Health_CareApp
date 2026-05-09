@@ -3,14 +3,13 @@ package com.example.HealthCareApp.appointment.service;
 import com.example.HealthCareApp.appointment.dto.AppointmentDto;
 import com.example.HealthCareApp.appointment.dto.RescheduleAppointmentDto;
 import com.example.HealthCareApp.appointment.entity.Appointment;
+import com.example.HealthCareApp.appointment.event.*;
 import com.example.HealthCareApp.appointment.repository.AppointmentRepo;
 import com.example.HealthCareApp.doctor.entity.Doctor;
 import com.example.HealthCareApp.doctor.repository.DoctorRepo;
 import com.example.HealthCareApp.enums.AppintmentStatus;
 import com.example.HealthCareApp.exception.BadRequestException;
 import com.example.HealthCareApp.exception.NotFoundExecption;
-import com.example.HealthCareApp.notification.dto.NotificationDto;
-import com.example.HealthCareApp.notification.service.NotificationService;
 import com.example.HealthCareApp.patient.entity.Patient;
 import com.example.HealthCareApp.patient.repository.PatientRepo;
 import com.example.HealthCareApp.res.Response;
@@ -19,89 +18,60 @@ import com.example.HealthCareApp.users.Service.UserService;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.catalina.User;
 import org.modelmapper.ModelMapper;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class AppointmentServiceImp implements AppointmentService
-{
-    private final AppointmentRepo appointmentRepo;
-    private final PatientRepo patientRepo;
-    private final DoctorRepo doctorRepo;
-    private final UserService userService;
-    private final ModelMapper modelMapper;
-    private final NotificationService notificationService;
+public class AppointmentServiceImp implements AppointmentService {
 
+    private final AppointmentRepo        appointmentRepo;
+    private final PatientRepo            patientRepo;
+    private final DoctorRepo             doctorRepo;
+    private final UserService            userService;
+    private final ModelMapper            modelMapper;
+    private final ApplicationEventPublisher eventPublisher; // ← replaces NotificationService
 
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("EEEE, MMM dd, yyyy 'at' hh:mm a");
+    // ----------------------------------------------------------------- BOOK
+
     @Override
     @Transactional
-    public Response<AppointmentDto> bookAppointment(AppointmentDto appointmentDTO)
-    {
-        UserEntity currentuser=userService.getCurrentUser();
+    public Response<AppointmentDto> bookAppointment(AppointmentDto appointmentDTO) {
 
-        // 1. Get the patient initiating the booking
-        Patient patient = patientRepo.findByUser(currentuser)
+        UserEntity currentUser = userService.getCurrentUser();
+
+        Patient patient = patientRepo.findByUser(currentUser)
                 .orElseThrow(() -> new NotFoundExecption("Patient profile required for booking."));
 
-        // 2. Get the target doctor
         Doctor doctor = doctorRepo.findById(appointmentDTO.getDoctorId())
                 .orElseThrow(() -> new NotFoundExecption("Doctor not found."));
 
-
-        // --- START: VALIDATION LOGIC ---
-        // Define the proposed time slot and the end time
         LocalDateTime startTime = appointmentDTO.getStartTime();
-        LocalDateTime endTime = startTime.plusMinutes(60); // Assuming 60-min slot
+        LocalDateTime endTime   = startTime.plusMinutes(60);
 
-        // 3. Basic validation: booking must be at least 1 hour in advance
         if (startTime.isBefore(LocalDateTime.now().plusHours(1))) {
             throw new BadRequestException("Appointments must be booked at least 1 hour in advance.");
         }
 
-        //This code snippet logic used to enforce a mandatory one-hour break (or buffer) for the doctor before a new appointment.
-        LocalDateTime checkStart = startTime.minusMinutes(60);
-
-
-        // We only need to check for existing appointments whose END TIME overlaps with
-        // the proposed start time, OR whose START TIME overlaps with the proposed end time.
-
         List<Appointment> conflicts = appointmentRepo.findConflictingAppointments(
-                doctor.getId(),
-                checkStart, // Check for conflicts from 1 hour before the proposed start
-                endTime
-        );
+                doctor.getId(), startTime.minusMinutes(60), endTime);
 
         if (!conflicts.isEmpty()) {
-            throw new BadRequestException("Doctor is not available at the requested time. Please check their schedule.");
+            throw new BadRequestException("Doctor is not available at the requested time.");
         }
 
-        // 4a. Generate a unique, random string for the room name.
-        //    (Your existing code is good for this)
-        String uuid = UUID.randomUUID().toString().replace("-", "");
-        String uniqueRoomName = "HealthCare-" + uuid.substring(0, 10);
+        String meetingLink = "https://meet.jit.si/HealthCare-" +
+                UUID.randomUUID().toString().replace("-", "").substring(0, 10);
 
-
-        // 4b. Use the public Jitsi Meet domain with your unique room name
-        String meetingLink = "https://meet.jit.si/" + uniqueRoomName;
-
-
-
-        // 5. Build and Save Appointment
         Appointment appointment = Appointment.builder()
-                .startTime(appointmentDTO.getStartTime())
-                .endTime(appointmentDTO.getStartTime().plusMinutes(60)) // Assuming 60-min slot
+                .startTime(startTime)
+                .endTime(endTime)
                 .meetingLink(meetingLink)
                 .initialSymptoms(appointmentDTO.getInitialSymptoms())
                 .purposeOfConsultation(appointmentDTO.getPurposeOfConsultation())
@@ -110,82 +80,96 @@ public class AppointmentServiceImp implements AppointmentService
                 .patient(patient)
                 .build();
 
-        Appointment savedAppointment = appointmentRepo.save(appointment);
+        Appointment saved = appointmentRepo.save(appointment);
 
-        sendAppointmentConfirmation(savedAppointment);
+        // ✅ Publish — service is done here; listeners handle the rest
+        eventPublisher.publishEvent(
+                AppointmentBookedEvent.builder()
+                        .appointmentId(saved.getId())
+                        .patientName(patient.getUser().getName())
+                        .patientEmail(patient.getUser().getEmail())
+                        .doctorName(doctor.getUser().getName())
+                        .doctorEmail(doctor.getUser().getEmail())
+                        .appointmentTime(saved.getStartTime())
+                        .meetingLink(saved.getMeetingLink())
+                        .initialSymptoms(saved.getInitialSymptoms())
+                        .purposeOfConsultation(saved.getPurposeOfConsultation())
+                        .build()
+        );
 
         return Response.<AppointmentDto>builder()
                 .statusCode(200)
                 .message("Appointment booked successfully.")
                 .build();
-
     }
+
+    // ------------------------------------------------------------- GET ALL
 
     @Override
     @Transactional
-    public Response<List<AppointmentDto>> getMyAppointments()
-    {
-        UserEntity user=userService.getCurrentUser();
-        Long userId = user.getId();
+    public Response<List<AppointmentDto>> getMyAppointments() {
 
+        UserEntity user   = userService.getCurrentUser();
+        Long       userId = user.getId();
         List<Appointment> appointments;
 
-        // Check for "DOCTOR" role
         boolean isDoctor = user.getRoles().stream()
                 .anyMatch(r -> r.getName().equals("DOCTOR"));
 
         if (isDoctor) {
-            // 1. Check for Doctor profile existence (required to throw the correct exception)
             doctorRepo.findByUser(user)
                     .orElseThrow(() -> new NotFoundExecption("Doctor profile not found."));
-
-            // 2. Efficiently fetch appointments of the Doctor
             appointments = appointmentRepo.findByDoctor_User_IdOrderByIdDesc(userId);
-
         } else {
-
-            // 1. Check for Patient profile existence
             patientRepo.findByUser(user)
                     .orElseThrow(() -> new NotFoundExecption("Patient profile not found."));
-
-            // 2. Efficiently fetch appointments using the User ID to navigate Patient relationship
             appointments = appointmentRepo.findByPatient_User_IdOrderByIdDesc(userId);
         }
-        // Convert the list of entities to DTOs in a single step
-        List<AppointmentDto> appointmentDTOList = appointments.stream()
-                .map(appointment -> modelMapper.map(appointment, AppointmentDto.class))
+
+        List<AppointmentDto> dtos = appointments.stream()
+                .map(a -> modelMapper.map(a, AppointmentDto.class))
                 .toList();
 
         return Response.<List<AppointmentDto>>builder()
                 .statusCode(200)
                 .message("Appointments retrieved successfully.")
-                .data(appointmentDTOList)
+                .data(dtos)
                 .build();
     }
 
+    // -------------------------------------------------------------- CANCEL
+
     @Override
     @Transactional
-    public Response<AppointmentDto> cancelAppointment(Long appointmentId)
-    {
-        UserEntity user=userService.getCurrentUser();
+    public Response<AppointmentDto> cancelAppointment(Long appointmentId) {
+
+        UserEntity  user        = userService.getCurrentUser();
         Appointment appointment = appointmentRepo.findById(appointmentId)
                 .orElseThrow(() -> new NotFoundExecption("Appointment not found."));
 
-
-        // Add security check: only the patient or doctor involved can cancel
-        boolean isOwner = appointment.getPatient().getUser().getId().equals(user.getId()) ||
-                appointment.getDoctor().getUser().getId().equals(user.getId());
+        boolean isOwner =
+                appointment.getPatient().getUser().getId().equals(user.getId()) ||
+                        appointment.getDoctor().getUser().getId().equals(user.getId());
 
         if (!isOwner) {
             throw new BadRequestException("You do not have permission to cancel this appointment.");
         }
 
-        // Update status
         appointment.setStatus(AppintmentStatus.CANCELLED);
-        Appointment savedAppointment = appointmentRepo.save(appointment);
+        Appointment saved = appointmentRepo.save(appointment);
 
-        // NOTE: Notification should be sent to the other party (patient/doctor)
-        sendAppointmentCancellation(savedAppointment, user);
+        // ✅ Publish
+        eventPublisher.publishEvent(
+                AppointmentCancelledEvent.builder()
+                        .appointmentId(saved.getId())
+                        .patientName(saved.getPatient().getUser().getName())
+                        .patientEmail(saved.getPatient().getUser().getEmail())
+                        .doctorName(saved.getDoctor().getUser().getName())
+                        .doctorEmail(saved.getDoctor().getUser().getEmail())
+                        .appointmentTime(saved.getStartTime())
+                        .cancelledByName(user.getName())
+                        .build()
+        );
 
         return Response.<AppointmentDto>builder()
                 .statusCode(200)
@@ -193,196 +177,96 @@ public class AppointmentServiceImp implements AppointmentService
                 .build();
     }
 
+    // ------------------------------------------------------------ COMPLETE
+
     @Override
-    public Response<?> completeAppointment(Long appointmentId)
-    {
-        // Get the current user (must be the Doctor)
-        UserEntity currentUser = userService.getCurrentUser();
+    @Transactional
+    public Response<?> completeAppointment(Long appointmentId) {
 
-        // 1. Fetch the appointment
+        UserEntity  currentUser = userService.getCurrentUser();
         Appointment appointment = appointmentRepo.findById(appointmentId)
-                .orElseThrow(() -> new NotFoundExecption("Appointment not found with ID: " + appointmentId));
+                .orElseThrow(() -> new NotFoundExecption("Appointment not found: " + appointmentId));
 
-        // Security Check 1: Ensure the current user is the Doctor assigned to this appointment
         if (!appointment.getDoctor().getUser().getId().equals(currentUser.getId())) {
             throw new BadRequestException("Only the assigned doctor can mark this appointment as complete.");
         }
 
-        // 2. Update status and end time
         appointment.setStatus(AppintmentStatus.COMPLETED);
         appointment.setEndTime(LocalDateTime.now());
+        Appointment saved = appointmentRepo.save(appointment);
 
-        Appointment updatedAppointment = appointmentRepo.save(appointment);
-
-        modelMapper.map(updatedAppointment, AppointmentDto.class);
+        // ✅ Publish
+        eventPublisher.publishEvent(
+                AppointmentCompletedEvent.builder()
+                        .appointmentId(saved.getId())
+                        .patientName(saved.getPatient().getUser().getName())
+                        .doctorName(saved.getDoctor().getUser().getName())
+                        .completedAt(saved.getEndTime())
+                        .build()
+        );
 
         return Response.builder()
                 .statusCode(200)
-                .message("Appointment successfully marked as completed. You may now proceed to create the consultation notes.")
+                .message("Appointment successfully marked as completed.")
                 .build();
     }
 
+    // --------------------------------------------------------- RESCHEDULE
+
     @Override
     @Transactional
-    public Response<AppointmentDto> rescheduleAppointment(Long AppointmentId, RescheduleAppointmentDto rescheduleAppointmentDto)
-    {
-        UserEntity currentUser = userService.getCurrentUser();
-        Appointment appointment = appointmentRepo.findById(AppointmentId)
-                .orElseThrow(()->new NotFoundExecption("Appointment not foune"));
+    public Response<AppointmentDto> rescheduleAppointment(
+            Long appointmentId, RescheduleAppointmentDto dto) {
+
+        UserEntity  currentUser = userService.getCurrentUser();
+        Appointment appointment = appointmentRepo.findById(appointmentId)
+                .orElseThrow(() -> new NotFoundExecption("Appointment not found."));
 
         if (appointment.getStatus() != AppintmentStatus.SCHEDULED) {
-            throw new BadRequestException("Only scheduled appointments can be rescheduled");
+            throw new BadRequestException("Only scheduled appointments can be rescheduled.");
         }
 
         if (!appointment.getPatient().getUser().getId().equals(currentUser.getId())) {
-            throw new BadRequestException("Unauthorized action");
+            throw new BadRequestException("Unauthorized action.");
         }
 
-        LocalDateTime newStart = rescheduleAppointmentDto.getNewStartTime();
-        LocalDateTime newEnd = newStart.plusMinutes(60);
+        LocalDateTime newStart = dto.getNewStartTime();
+        LocalDateTime newEnd   = newStart.plusMinutes(60);
 
         if (newStart.isBefore(LocalDateTime.now().plusHours(1))) {
-            throw new BadRequestException("Rescheduling must be done at least 1 hour in advance");
+            throw new BadRequestException("Rescheduling must be done at least 1 hour in advance.");
         }
-        LocalDateTime checkStart = newStart.minusMinutes(60);
 
-        List<Appointment> conflicts =
-                appointmentRepo.findConflictingAppointments(
-                        appointment.getDoctor().getId(),
-                        checkStart,
-                        newEnd
-                );
+        List<Appointment> conflicts = appointmentRepo.findConflictingAppointments(
+                appointment.getDoctor().getId(), newStart.minusMinutes(60), newEnd);
 
-        conflicts.removeIf(a -> a.getId().equals(AppointmentId));
+        conflicts.removeIf(a -> a.getId().equals(appointmentId));
 
         if (!conflicts.isEmpty()) {
-            throw new BadRequestException("Doctor is not available at this time");
+            throw new BadRequestException("Doctor is not available at this time.");
         }
 
         appointment.setStartTime(newStart);
         appointment.setEndTime(newEnd);
+        Appointment saved = appointmentRepo.save(appointment);
 
-        appointmentRepo.save(appointment);
-
-        sendAppointmentConfirmation(appointment);
-
-        log.info("Reschedule request received for appointmentId={}");
-        log.info("New start time received: {}", rescheduleAppointmentDto.getNewStartTime());
+        // ✅ Publish
+        eventPublisher.publishEvent(
+                AppointmentRescheduledEvent.builder()
+                        .appointmentId(saved.getId())
+                        .patientName(saved.getPatient().getUser().getName())
+                        .patientEmail(saved.getPatient().getUser().getEmail())
+                        .doctorName(saved.getDoctor().getUser().getName())
+                        .doctorEmail(saved.getDoctor().getUser().getEmail())
+                        .newAppointmentTime(saved.getStartTime())
+                        .meetingLink(saved.getMeetingLink())
+                        .purposeOfConsultation(saved.getPurposeOfConsultation())
+                        .build()
+        );
 
         return Response.<AppointmentDto>builder()
                 .statusCode(200)
-                .message("Appointment rescheduled successfully")
+                .message("Appointment rescheduled successfully.")
                 .build();
     }
-
-
-    private void sendAppointmentCancellation(Appointment appointment, UserEntity cancelingUser){
-
-        UserEntity patientUser = appointment.getPatient().getUser();
-        UserEntity doctorUser = appointment.getDoctor().getUser();
-
-        // Safety check to ensure the cancellingUser is involved
-        boolean isOwner = patientUser.getId().equals(cancelingUser.getId()) || doctorUser.getId().equals(cancelingUser.getId());
-        if (!isOwner) {
-            log.error("Cancellation initiated by user not associated with appointment. User ID: {}", cancelingUser.getId());
-            return;
-        }
-
-        String formattedTime = appointment.getStartTime().format(FORMATTER);
-        String cancellingPartyName = cancelingUser.getName();
-
-
-        // --- Common Variables for the Template ---
-        Map<String, Object> baseVars = new HashMap<>();
-        baseVars.put("cancellingPartyName", cancellingPartyName);
-        baseVars.put("appointmentTime", formattedTime);
-        baseVars.put("doctorName", appointment.getDoctor().getLastName());
-        baseVars.put("patientFullName", patientUser.getName());
-
-        // --- 1. Dispatch Email to Doctor ---
-        Map<String, Object> doctorVars = new HashMap<>(baseVars);
-        doctorVars.put("recipientName", doctorUser.getName());
-
-        NotificationDto doctorNotification = NotificationDto.builder()
-                .recipient(doctorUser.getEmail())
-                .subject("DAT Health: Appointment Cancellation")
-                .templateName("appointment-cancellation")
-                .templateVariables(doctorVars)
-                .build();
-
-        notificationService.sendMail(doctorNotification, doctorUser);
-        log.info("Dispatched cancellation email to Doctor: {}", doctorUser.getEmail());
-
-
-        // --- 2. Dispatch Email to Patient ---
-        Map<String, Object> patientVars = new HashMap<>(baseVars);
-        patientVars.put("recipientName", patientUser.getName());
-
-        NotificationDto patientNotification = NotificationDto.builder()
-                .recipient(patientUser.getEmail())
-                .subject("DAT Health: Appointment CANCELED (ID: " + appointment.getId() + ")")
-                .templateName("appointment-cancellation")
-                .templateVariables(patientVars)
-                .build();
-
-        notificationService.sendMail(patientNotification, patientUser);
-        log.info("Dispatched cancellation email to Patient: {}", patientUser.getEmail());
-
-    }
-
-
-
-    private void sendAppointmentConfirmation(Appointment appointment) {
-
-        // --- 1. Prepare Patient Notification ---
-        UserEntity patientUser = appointment.getPatient().getUser();
-        String formattedTime = appointment.getStartTime().format(FORMATTER);
-
-
-        Map<String, Object> patientVars = new HashMap<>();
-        patientVars.put("patientName", patientUser.getName());
-        patientVars.put("doctorName", appointment.getDoctor().getUser().getName());
-        patientVars.put("appointmentTime", formattedTime);
-        patientVars.put("isVirtual", true);
-        patientVars.put("meetingLink", appointment.getMeetingLink());
-        patientVars.put("purposeOfConsultation", appointment.getPurposeOfConsultation());
-
-        NotificationDto patientNotification = NotificationDto.builder()
-                .recipient(patientUser.getEmail())
-                .subject("HealthCare_App: Your Appointment is Confirmed")
-                .templateName("patient-appointment")
-                .templateVariables(patientVars)
-                .build();
-
-
-        // Dispatch patient email using the low-level service
-        notificationService.sendMail(patientNotification, patientUser);
-
-
-        // --- 2. Prepare Doctor Notification ---
-        UserEntity doctorUser = appointment.getDoctor().getUser();
-
-        Map<String, Object> doctorVars = new HashMap<>();
-        doctorVars.put("doctorName", doctorUser.getName());
-        doctorVars.put("patientFullName", patientUser.getName());
-        doctorVars.put("appointmentTime", formattedTime);
-        doctorVars.put("isVirtual", true);
-        doctorVars.put("meetingLink", appointment.getMeetingLink());
-        doctorVars.put("initialSymptoms", appointment.getInitialSymptoms());
-        doctorVars.put("purposeOfConsultation", appointment.getPurposeOfConsultation());
-
-        NotificationDto doctorNotification = NotificationDto.builder()
-                .recipient(doctorUser.getEmail())
-                .subject("HealthCare_App: New Appointment Booked")
-                .templateName("doctor-appointment")
-                .templateVariables(doctorVars)
-                .build();
-
-
-        // Dispatch doctor email using the low-level service
-        notificationService.sendMail(doctorNotification, doctorUser);
-    }
-
-
 }
-
