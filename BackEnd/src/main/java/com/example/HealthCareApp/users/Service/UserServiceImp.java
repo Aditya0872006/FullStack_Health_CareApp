@@ -153,7 +153,7 @@ public class UserServiceImp implements UserService
             String fileExtension = "";
             if (originalFileName != null && originalFileName.contains(".")) {
                 fileExtension = originalFileName.substring(originalFileName.lastIndexOf("."));
-            }
+            }   
 
             String newFileName = UUID.randomUUID() + fileExtension;
             Path filePath = uploadPath.resolve(newFileName);

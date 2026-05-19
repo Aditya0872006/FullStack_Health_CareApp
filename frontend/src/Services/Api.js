@@ -1,6 +1,6 @@
 import axios from "axios";
 
-// ✅ Local variable for API base URL
+
 const API_BASE_URL = "http://localhost:8086/api";
 
 // Create axios instance

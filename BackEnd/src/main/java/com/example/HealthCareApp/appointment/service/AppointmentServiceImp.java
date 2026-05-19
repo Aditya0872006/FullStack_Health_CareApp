@@ -55,6 +55,12 @@ public class AppointmentServiceImp implements AppointmentService {
         LocalDateTime startTime = appointmentDTO.getStartTime();
         LocalDateTime endTime   = startTime.plusMinutes(60);
 
+        int hour = startTime.getHour();
+
+        if (hour < 9 || hour >= 18) {
+            throw new BadRequestException("Appointments can only be booked between 9 AM to 6 PM.");
+        }
+
         if (startTime.isBefore(LocalDateTime.now().plusHours(1))) {
             throw new BadRequestException("Appointments must be booked at least 1 hour in advance.");
         }
